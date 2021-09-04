@@ -1,5 +1,5 @@
-import { createContext, ReactNode, useState } from "react";
-import { setCookie } from 'nookies';
+import { createContext, ReactNode, useEffect, useState } from "react";
+import { parseCookies, setCookie } from 'nookies';
 import  Router  from "next/router";
 import { api } from "../services/api";
 
@@ -32,6 +32,16 @@ export const AuthContext = createContext({} as AuthContextData)
 export function AuthProvider({children}: AuthProviderProps){
   const [user, setUser] = useState<User>();
   const isAuthenticated = !!user;
+
+  useEffect(() =>{
+    const {'nextauth.token': token} = parseCookies()
+    if(token) {
+      api.get('/me').then(response => {
+        const { email, permissions, roles} = response.data
+        setUser({email, permissions,roles})
+      })
+    }
+  },[])
   //tem que ser ASYNC pois o retorno é uma promise
   async function singIn({email,password}: SignInCredetials){
     try {
@@ -55,6 +65,8 @@ export function AuthProvider({children}: AuthProviderProps){
         permissions,
         roles
       })
+      
+      api.defaults.headers['Authorization'] = `Bearer ${token}`
       Router.push('/dashboard')
     } catch (error) {
       console.log(error)
