@@ -1,5 +1,13 @@
-import { createContext, ReactNode } from "react";
+import { createContext, ReactNode, useState } from "react";
+import { setCookie } from 'nookies';
+import  Router  from "next/router";
 import { api } from "../services/api";
+
+type User = {
+  email: string;
+  permissions: string[];
+  roles: string[];
+}
 
 type SignInCredetials = {
   email:string;
@@ -11,6 +19,7 @@ type SignInCredetials = {
 type AuthContextData = {
   //o metodo de autenticação vai dentro do contexto, pois mais de uma pagina pode precisar acessar esse metodo para autenticar o usuario
   singIn(credentials: SignInCredetials): Promise<void>;
+  user: User;
   isAuthenticated: boolean;
 }
 
@@ -21,7 +30,8 @@ type AuthProviderProps ={
 export const AuthContext = createContext({} as AuthContextData)
 
 export function AuthProvider({children}: AuthProviderProps){
-  const isAuthenticated = false;
+  const [user, setUser] = useState<User>();
+  const isAuthenticated = !!user;
   //tem que ser ASYNC pois o retorno é uma promise
   async function singIn({email,password}: SignInCredetials){
     try {
@@ -29,13 +39,29 @@ export function AuthProvider({children}: AuthProviderProps){
         email,
         password
       })
-      console.log(response.data)
+      const {token, refreshToken, permissions, roles } = response.data
+
+      setCookie(undefined,'nextauth.token', token,{
+        maxAge: 60*60*24*30,
+        path:'/'
+      })
+      setCookie(undefined, 'nextauth.refreshToken', refreshToken, {
+        maxAge: 60 * 60 * 24 * 30,
+        path: '/'
+      })
+
+      setUser({
+        email,
+        permissions,
+        roles
+      })
+      Router.push('/dashboard')
     } catch (error) {
       console.log(error)
     }
   }
   return(
-    <AuthContext.Provider value={{singIn,isAuthenticated}}>
+    <AuthContext.Provider value={{singIn,isAuthenticated, user}}>
       {children}
     </AuthContext.Provider>
   )
