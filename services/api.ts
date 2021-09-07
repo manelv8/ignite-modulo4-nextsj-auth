@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import {destroyCookie, parseCookies, setCookie} from 'nookies'
 import Router from "next/router";
+import { AuthTokenError } from './erros/AuthTokenError';
 
 let isRefreshing = false;
 let failedRequestsQueue = []
@@ -31,6 +32,7 @@ export function setupAPIClient(ctx = undefined){
         const originalConfig = error.config;
 
         if (!isRefreshing) {
+          console.log('refreshing...')
           isRefreshing = true;
           api.post('/refresh', {
             refreshToken,
@@ -54,6 +56,8 @@ export function setupAPIClient(ctx = undefined){
 
             if (process.browser) {
               signOut()
+            }else {
+              return Promise.reject(new AuthTokenError())
             }
           }).finally(() => {
             isRefreshing = false;
@@ -75,6 +79,8 @@ export function setupAPIClient(ctx = undefined){
 
         if (process.browser) {
           signOut()
+        } else {
+          return Promise.reject(new AuthTokenError())
         }
       }
     }
