@@ -2,7 +2,6 @@ import { createContext, ReactNode, useEffect, useState } from "react";
 import { destroyCookie, parseCookies, setCookie } from 'nookies';
 import  Router  from "next/router";
 import { api  } from "../services/apiClient";
-import {signOut} from "../services/api";
 
 type User = {
   email: string;
@@ -19,7 +18,8 @@ type SignInCredetials = {
 //informação dentro do contexto
 type AuthContextData = {
   //o metodo de autenticação vai dentro do contexto, pois mais de uma pagina pode precisar acessar esse metodo para autenticar o usuario
-  singIn(credentials: SignInCredetials): Promise<void>;
+  singIn: (credentials: SignInCredetials)=> Promise<void>;
+  signOut:() => void;
   user: User;
   isAuthenticated: boolean;
 }
@@ -30,9 +30,36 @@ type AuthProviderProps ={
 }
 export const AuthContext = createContext({} as AuthContextData)
 
+let authChannel: BroadcastChannel;
+
+export function signOut() {
+  destroyCookie(undefined, 'nextauth.token')
+  destroyCookie(undefined, 'nextauth.refreshToken')
+  authChannel.postMessage('signOut')
+  Router.push('/')
+}
+
+
 export function AuthProvider({children}: AuthProviderProps){
   const [user, setUser] = useState<User>();
   const isAuthenticated = !!user;
+
+  useEffect(()=>{
+    authChannel = new BroadcastChannel('auth');
+
+    authChannel.onmessage = (message) => {
+      switch(message.data){
+        case "signOut":
+          signOut();
+          authChannel.close();
+          break;
+        case "signIn": window.location.replace("http://localhost:3000/dashboard");
+          break;
+        default:
+          break;
+      }
+    }
+  },[])
 
   useEffect(() =>{
     const {'nextauth.token': token} = parseCookies()
@@ -70,13 +97,14 @@ export function AuthProvider({children}: AuthProviderProps){
       })
       
       api.defaults.headers['Authorization'] = `Bearer ${token}`
+      authChannel.postMessage("signIn");
       Router.push('/dashboard')
     } catch (error) {
       console.log(error)
     }
   }
   return(
-    <AuthContext.Provider value={{singIn,isAuthenticated, user}}>
+    <AuthContext.Provider value={{singIn,signOut,isAuthenticated, user}}>
       {children}
     </AuthContext.Provider>
   )

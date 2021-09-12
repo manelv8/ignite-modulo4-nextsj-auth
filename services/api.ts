@@ -2,15 +2,11 @@ import axios, { AxiosError } from 'axios';
 import {destroyCookie, parseCookies, setCookie} from 'nookies'
 import Router from "next/router";
 import { AuthTokenError } from './erros/AuthTokenError';
+import { signOut } from '../contexts/AuthContext';
 
 let isRefreshing = false;
 let failedRequestsQueue = []
 
-export function signOut() {
-  destroyCookie(undefined, 'nextauth.token')
-  destroyCookie(undefined, 'nextauth.refreshToken')
-  Router.push('/')
-}
 export function setupAPIClient(ctx = undefined){
   let cookies = parseCookies(ctx)
 
